@@ -6,8 +6,8 @@ import type { ShowStatus } from "@tvtrack/model";
 
 const STALE_DAYS = 14;
 
-const STATUSES: ("All" | ShowStatus)[] = ["All", "Watching", "Backlog", "Paused", "Ended"];
-const filter = ref<"All" | ShowStatus>("All");
+const STATUSES: ShowStatus[] = ["Watching", "Backlog", "Paused", "Ended"];
+const filter = ref<ShowStatus>("Watching");
 const subs = ref<SubscriptionEntry[]>([]);
 const stats = ref<StatsSummary | null>(null);
 const results = ref<SearchResult[]>([]);
@@ -21,7 +21,7 @@ async function loadSubs() {
   error.value = null;
   try {
     [subs.value, stats.value] = [
-      await api.subscriptions(filter.value === "All" ? undefined : filter.value),
+      await api.subscriptions(filter.value),
       await api.stats(),
     ];
   } catch (e) {
@@ -111,7 +111,7 @@ function isActionable(entry: SubscriptionEntry): boolean {
   return tierOf(entry) === "watch";
 }
 
-/** Tier order first (name order preserved within each tier). */
+/** Tier order first, alphabetical within each tier (server is name-ordered; stable sort keeps it). */
 const STATUS_RANK: Record<ShowStatus, number> = {
   Watching: 0,
   Backlog: 1,
@@ -122,9 +122,35 @@ const sortedSubs = computed(() =>
   [...subs.value].sort(
     (a, b) =>
       STATUS_RANK[a.status] - STATUS_RANK[b.status] ||
-      TIER_RANK[tierOf(a)] - TIER_RANK[tierOf(b)],
+      TIER_RANK[tierOf(a)] - TIER_RANK[tierOf(b)] ||
+      a.show.name.localeCompare(b.show.name),
   ),
 );
+
+function firstLetter(name: string): string {
+  const c = name.trim().charAt(0).toUpperCase();
+  return c >= "A" && c <= "Z" ? c : "#";
+}
+
+type LibRow =
+  | { kind: "header"; letter: string; key: string }
+  | { kind: "show"; entry: SubscriptionEntry };
+
+/** Letter dividers following the rendered order (tiers stay grouped; a letter
+ * may head two groups when it spans tiers). */
+const groupedSubs = computed(() => {
+  const rows: LibRow[] = [];
+  let last = "";
+  for (const e of sortedSubs.value) {
+    const L = firstLetter(e.show.name);
+    if (L !== last) {
+      rows.push({ kind: "header", letter: L, key: `h${rows.length}` });
+      last = L;
+    }
+    rows.push({ kind: "show", entry: e });
+  }
+  return rows;
+});
 
 function inWhen(airstamp: string): string {
   const ms = new Date(airstamp).getTime() - Date.now();
@@ -261,30 +287,38 @@ onMounted(loadSubs);
     </div>
 
     <ul class="subs">
-      <li v-for="e in sortedSubs" :key="e.show.tvmazeId" :class="{ caughtup: !isActionable(e) }">
-        <img
-          v-if="e.show.posterUrl"
-          :src="e.show.posterUrl"
-          :alt="`${e.show.name} poster`"
-          loading="lazy"
-        />
-        <div v-else class="poster-fallback" aria-hidden="true" />
-        <div class="sub-main">
-          <RouterLink :to="`/shows/${e.show.tvmazeId}`">{{ e.show.name }}</RouterLink>
-          <span class="next-up">{{ nextLabel(e) }}</span>
-          <span class="meta">{{ e.progress.watched }}/{{ e.progress.total }}</span>
-          <span v-if="isStale(e.show.lastSyncedAt)" class="stale" title="Not refreshed in 14+ days">stale</span>
-        </div>
-        <button
-          v-if="isActionable(e)"
-          class="watch-btn"
-          @click="markNextWatched(e)"
-          title="Mark next episode watched"
-          aria-label="Mark next episode watched"
-        >
-          ✓
-        </button>
-      </li>
+      <template
+        v-for="row in groupedSubs"
+        :key="row.kind === 'header' ? row.key : row.entry.show.tvmazeId"
+      >
+        <li v-if="row.kind === 'header'" class="letter-head" aria-hidden="true">
+          {{ row.letter }}
+        </li>
+        <li v-else :class="{ caughtup: !isActionable(row.entry) }">
+          <img
+            v-if="row.entry.show.posterUrl"
+            :src="row.entry.show.posterUrl"
+            :alt="`${row.entry.show.name} poster`"
+            loading="lazy"
+          />
+          <div v-else class="poster-fallback" aria-hidden="true" />
+          <div class="sub-main">
+            <RouterLink :to="`/shows/${row.entry.show.tvmazeId}`">{{ row.entry.show.name }}</RouterLink>
+            <span class="next-up">{{ nextLabel(row.entry) }}</span>
+            <span class="meta">{{ row.entry.progress.watched }}/{{ row.entry.progress.total }}</span>
+            <span v-if="isStale(row.entry.show.lastSyncedAt)" class="stale" title="Not refreshed in 14+ days">stale</span>
+          </div>
+          <button
+            v-if="isActionable(row.entry)"
+            class="watch-btn"
+            @click="markNextWatched(row.entry)"
+            title="Mark next episode watched"
+            aria-label="Mark next episode watched"
+          >
+            ✓
+          </button>
+        </li>
+      </template>
     </ul>
   </main>
 </template>
@@ -366,6 +400,17 @@ onMounted(loadSubs);
 .subs {
   list-style: none;
   padding: 0;
+}
+.letter-head {
+  position: sticky;
+  top: 68px;
+  z-index: 5;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.35rem 0 0.25rem;
+  border-bottom: 1px solid var(--border);
 }
 .results li {
   display: flex;
