@@ -12,6 +12,7 @@ const loadingMore = ref(false);
 const error = ref<string | null>(null);
 const notice = ref<string | null>(null);
 const hasMore = ref(true);
+let noticeTimer: ReturnType<typeof setTimeout> | undefined;
 type Side = "left" | "right";
 const openAction = ref<{ key: number; side: Side } | null>(null);
 const drag = ref<{ key: number; startX: number; base: number; dx: number } | null>(null);
@@ -110,6 +111,10 @@ function dropRow(i: HistoryItem) {
 }
 
 async function unwatch(i: HistoryItem) {
+  if (i.episodeId == null) {
+    error.value = "Outdated entry — refresh the page and try again.";
+    return;
+  }
   try {
     await api.setWatched(i.episodeId, false);
     dropRow(i);
@@ -119,10 +124,16 @@ async function unwatch(i: HistoryItem) {
 }
 
 async function clearDate(i: HistoryItem) {
+  if (i.episodeId == null) {
+    error.value = "Outdated entry — refresh the page and try again.";
+    return;
+  }
   try {
     await api.clearWatchDate(i.episodeId);
     dropRow(i);
     notice.value = "Date removed — episode stays marked watched.";
+    clearTimeout(noticeTimer);
+    noticeTimer = setTimeout(() => (notice.value = null), 4000);
   } catch (e) {
     error.value = (e as Error).message;
   }
@@ -146,12 +157,13 @@ onMounted(async () => {
     <h1>History</h1>
     <p v-if="loading">Loading…</p>
     <p v-else-if="error" class="error">{{ error }}</p>
-    <p v-if="notice && !loading && !error" class="notice">{{ notice }}</p>
-    <p v-else-if="items.length === 0">
-      Nothing yet. Episodes you mark watched one by one (or fill in via gap
-      detection) appear here, newest first. Season-wide backfills are skipped.
-    </p>
-    <ul v-else class="history">
+    <template v-else>
+      <p v-if="notice" class="notice">{{ notice }}</p>
+      <p v-if="items.length === 0">
+        Nothing yet. Episodes you mark watched one by one (or fill in via gap
+        detection) appear here, newest first. Season-wide backfills are skipped.
+      </p>
+      <ul v-else class="history">
       <li v-for="i in items" :key="rowKey(i)" class="swipe-row">
         <div class="swipe-actions left">
           <button
@@ -199,6 +211,7 @@ onMounted(async () => {
         </div>
       </li>
     </ul>
+    </template>
     <button
       v-if="hasMore && !loading"
       class="ghost-pill"

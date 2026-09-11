@@ -2,7 +2,7 @@
 // Assets (hashed by Vite) are cache-first; /api/* is network-first with a
 // cache fallback so recently viewed data survives flaky Wi-Fi. Writes
 // always go to the network — never cache POST/PATCH/PUT/DELETE.
-const CACHE = "tvtrack-v1";
+const CACHE = "tvtrack-v2";
 const SHELL = ["/", "/index.html", "/manifest.webmanifest", "/icon.svg"];
 
 self.addEventListener("install", (event) => {
