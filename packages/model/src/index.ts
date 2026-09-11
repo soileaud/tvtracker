@@ -110,6 +110,7 @@ export interface StatsSummary {
 }
 
 export interface HistoryItem {
+  episodeId: number;
   showId: number;
   showName: string;
   posterUrl: string | null;

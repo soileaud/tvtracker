@@ -371,8 +371,7 @@ export class SqliteWatchStore implements WatchStore {
     }
   }
 
-  setSeasonWatched(seasonId: string, watched: boolean): void {
-    const rows = this.db
+  setSeasonWatched(seasonId: string, watched: boolean): void {    const rows = this.db
       .prepare(`SELECT tvmaze_id FROM episodes WHERE season_id = ?`)
       .all(seasonId) as unknown as { tvmaze_id: number }[];
     // Bulk backfill: new rows get NULL watched_at (excluded from History),
@@ -391,6 +390,12 @@ export class SqliteWatchStore implements WatchStore {
         )
         .run(seasonId);
     }
+  }
+
+  clearWatchedAt(episodeId: number): void {
+    this.db
+      .prepare(`UPDATE watched SET watched_at = NULL WHERE episode_id = ?`)
+      .run(episodeId);
   }
 
   clearForShow(showId: number): void {
@@ -421,7 +426,7 @@ export class SqliteWatchStore implements WatchStore {
   listHistory(limit: number, offset: number): HistoryItem[] {
     const rows = this.db
       .prepare(
-        `SELECT e.show_id, s.name AS show_name, s.poster_url AS show_poster,
+        `SELECT e.tvmaze_id AS episode_id, e.show_id, s.name AS show_name, s.poster_url AS show_poster,
                 e.season_no, e.number, e.title, w.watched_at
          FROM watched w
          JOIN episodes e ON e.tvmaze_id = w.episode_id
@@ -431,6 +436,7 @@ export class SqliteWatchStore implements WatchStore {
          LIMIT ? OFFSET ?`,
       )
       .all(limit, offset) as unknown as {
+      episode_id: number;
       show_id: number;
       show_name: string;
       show_poster: string | null;
@@ -440,6 +446,7 @@ export class SqliteWatchStore implements WatchStore {
       watched_at: string;
     }[];
     return rows.map((r) => ({
+      episodeId: r.episode_id,
       showId: r.show_id,
       showName: r.show_name,
       posterUrl: r.show_poster,

@@ -223,6 +223,14 @@ describe("api", () => {
     const items2 = h2.json().items as { title: string; watchedAt: string }[];
     expect(items2).toHaveLength(2);
     expect(items2[0]?.watchedAt).toBe(items2[1]?.watchedAt);
+
+    // Clearing the date drops the row from History but keeps it watched.
+    const clear = await b.app.inject({ method: "POST", url: "/api/episodes/4201/clear-date" });
+    expect(clear.statusCode).toBe(200);
+    const h3 = await b.app.inject({ method: "GET", url: "/api/history?limit=30&offset=0" });
+    expect(h3.json().items).toHaveLength(1);
+    const stillThere = await b.app.inject({ method: "GET", url: "/api/shows/42" });
+    expect(stillThere.json().progress).toEqual({ watched: 2, total: 2 });
   });
 
   it("export/import round-trips subscriptions + watched", async () => {

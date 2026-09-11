@@ -130,6 +130,10 @@ export const api = {
     req<{ ok: true }>(`/api/episodes/${episodeId}/watch-up-to-here`, {
       method: "POST",
     }),
+  clearWatchDate: (episodeId: number) =>
+    req<{ ok: true }>(`/api/episodes/${episodeId}/clear-date`, {
+      method: "POST",
+    }),
   refreshShow: (showId: number) =>
     req<{ ok: true }>(`/api/refresh/${showId}`, { method: "POST" }),
   refreshAll: () =>

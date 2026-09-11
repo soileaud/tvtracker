@@ -196,6 +196,12 @@ export function registerApi(app: FastifyInstance, deps: ApiDeps): void {
     return { ok: true };
   });
 
+  // Drop the watch date but stay watched (backfill without History clutter).
+  app.post("/api/episodes/:id/clear-date", async (req) => {
+    stores.watched.clearWatchedAt(Number((req.params as { id: string }).id));
+    return { ok: true };
+  });
+
   // --- Refresh ---
   app.post("/api/refresh/:showId", async (req) => {
     await sync.refreshShow(Number((req.params as { showId: string }).showId));

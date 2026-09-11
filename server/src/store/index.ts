@@ -25,6 +25,8 @@ export interface WatchStore {
   isWatched(episodeId: number): boolean;
   setWatched(episodeId: number, watched: boolean, at?: string | null): void;
   setSeasonWatched(seasonId: string, watched: boolean): void;
+  /** Keep the episode watched but drop its date (leaves History, like backfills). */
+  clearWatchedAt(episodeId: number): void;
   clearForShow(showId: number): void;
   listHistory(limit: number, offset: number): HistoryItem[];
 }
