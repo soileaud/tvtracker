@@ -103,8 +103,74 @@ const seasonFullyWatched = computed(() =>
 );
 
 async function toggleSeasonWatched() {
-  if (activeSeason.value) await api.setSeasonWatched(activeSeason.value, !seasonFullyWatched.value);
-  await reload();
+  if (!activeSeason.value || !detail.value || !season.value) return;
+  // Unwatching never prompts — just clear this season.
+  if (seasonFullyWatched.value) {
+    try {
+      await api.setSeasonWatched(activeSeason.value, false);
+      await reload();
+    } catch (e) {
+      error.value = (e as Error).message;
+    }
+    return;
+  }
+  // Marking watched: prompt when prior seasons are also unwatched.
+  const prior = priorUnwatchedSeasons.value;
+  if (prior.length === 0) {
+    try {
+      await api.setSeasonWatched(activeSeason.value, true);
+      await reload();
+    } catch (e) {
+      error.value = (e as Error).message;
+    }
+    return;
+  }
+  pendingSeason.value = {
+    seasonId: activeSeason.value,
+    priorIds: prior.map((s) => s.season.id),
+    labels: prior.map((s) => seasonName(s.season.seasonNo)),
+  };
+}
+
+const pendingSeason = ref<{ seasonId: string; priorIds: string[]; labels: string[] } | null>(null);
+
+async function confirmSeasonAll() {
+  if (!pendingSeason.value) return;
+  try {
+    for (const id of [...pendingSeason.value.priorIds, pendingSeason.value.seasonId]) {
+      await api.setSeasonWatched(id, true);
+    }
+    pendingSeason.value = null;
+    await reload();
+  } catch (e) {
+    pendingSeason.value = null;
+    error.value = (e as Error).message;
+  }
+}
+
+async function confirmSeasonOne() {
+  if (!pendingSeason.value) return;
+  try {
+    await api.setSeasonWatched(pendingSeason.value.seasonId, true);
+    pendingSeason.value = null;
+    await reload();
+  } catch (e) {
+    pendingSeason.value = null;
+    error.value = (e as Error).message;
+  }
+}
+
+/** Prior seasons (lower seasonNo) not yet fully watched. Bulk marks use NULL watched_at server-side, so none of these land in History. */
+const priorUnwatchedSeasons = computed(() => {
+  if (!detail.value || !season.value) return [];
+  const currentNo = season.value.season.seasonNo;
+  return detail.value.seasons.filter(
+    (s) => s.season.seasonNo < currentNo && s.progress.watched < s.progress.total,
+  );
+});
+
+function seasonName(seasonNo: number): string {
+  return seasonNo === 0 ? "Specials" : `S${seasonNo}`;
 }
 
 const season = computed(() =>
@@ -454,6 +520,27 @@ onMounted(async () => {
         </button>
         <button class="ghost-pill" @click="confirmGapOne">Only this episode</button>
         <button class="link-btn" @click="pendingGap = null">Cancel</button>
+      </div>
+    </div>
+    <div
+      v-if="pendingSeason"
+      class="modal-backdrop"
+      @click.self="pendingSeason = null"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Unwatched prior seasons"
+    >
+      <div class="modal">
+        <p>
+          {{ pendingSeason.labels.slice(0, 5).join(", ")
+          }}{{ pendingSeason.labels.length > 5 ? ` +${pendingSeason.labels.length - 5} more` : "" }}
+          {{ pendingSeason.labels.length === 1 ? "is" : "are" }} still unwatched.
+        </p>
+        <button class="btn-primary" @click="confirmSeasonAll">
+          Mark this season + prior seasons
+        </button>
+        <button class="ghost-pill" @click="confirmSeasonOne">Only this season</button>
+        <button class="link-btn" @click="pendingSeason = null">Cancel</button>
       </div>
     </div>
     <div
