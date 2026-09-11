@@ -66,6 +66,19 @@ export function buildApp(overrides?: Partial<ApiDeps>): {
   const dist = join(here, "..", "..", "client", "dist");
   if (existsSync(dist)) {
     app.register(fastifyStatic, { root: dist });
+    // SPA fallback (Vue Router createWebHistory): serve index.html for
+    // non-API GETs like /library, /upcoming, /shows/:id so refresh,
+    // direct links, and PWA launches work. /api/* keeps JSON 404s.
+    app.setNotFoundHandler((req, reply) => {
+      const url = req.url ?? "";
+      if (url === "/api" || url.startsWith("/api/")) {
+        return reply.code(404).send({ error: "not found" });
+      }
+      if (req.method !== "GET" && req.method !== "HEAD") {
+        return reply.code(404).send({ error: "not found" });
+      }
+      return reply.sendFile("index.html");
+    });
   }
 
   return { app, deps };
