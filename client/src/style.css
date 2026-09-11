@@ -1,0 +1,68 @@
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --text: #1c1b1f;
+  --muted: #6b6375;
+  --border: #e5e4e7;
+  --link: #6d28d9;
+  --danger: #b3261e;
+  --notice: #2e7d32;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16171d;
+    --text: #f3f4f6;
+    --muted: #9ca3af;
+    --border: #2e303a;
+    --link: #c084fc;
+    --danger: #e57373;
+    --notice: #9ccc9c;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.45 system-ui, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0 16px 48px;
+  text-align: left;
+  min-height: 100svh;
+}
+
+h1 {
+  font-size: 1.75rem;
+  margin: 1.25rem 0;
+}
+
+a {
+  color: var(--link);
+  overflow-wrap: anywhere;
+}
+
+button,
+select,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
