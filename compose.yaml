@@ -1,0 +1,15 @@
+services:
+  tvtrack:
+    build: .
+    image: homeapps/tvtrack:local
+    container_name: homeapps-tvtrack
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: 3001
+      DB_PATH: /data/tvtrack.db
+      AUTO_REFRESH: "true"
+      REFRESH_HOUR: 3
+    volumes:
+      - "${HOME}/Library/Application Support/HomeApps/tvtrack:/data"

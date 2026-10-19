@@ -35,6 +35,28 @@ npm run build            # model -> server -> client
 npm run start -w @tvtrack/server
 ```
 
+## Docker on the home LAN
+
+From this directory, run `npm run docker:up` to build and start the container.
+After pulling code changes, use `npm run docker:update` to rebuild and replace
+it. `npm run docker:stop`, `npm run docker:restart`, `npm run docker:logs`, and
+`npm run docker:status` cover the other common actions. The production app
+serves on port 3001 and stores its database in
+`~/Library/Application Support/HomeApps/tvtrack/`. Compose uses
+`restart: unless-stopped`, so Docker starts it again after a host restart once
+Docker Desktop is running. Enable Docker Desktop's **Start Docker Desktop
+when you sign in** setting for automatic startup after Mac sign-in. Open
+`http://<mac-lan-ip>:3001` from a household device. This single-user app has no
+authentication; keep access to a trusted LAN.
+
+### Move an existing database
+
+Before the first `npm run docker:up`, stop TVTrack on the old PC and copy its
+`server/data/tvtrack.db` file to
+`~/Library/Application Support/HomeApps/tvtrack/tvtrack.db` on this Mac. The
+container is configured with `DB_PATH=/data/tvtrack.db`, where `/data` is that
+host folder. Keep a separate backup before moving it.
+
 The API serves the Vue build itself on `PORT` (default 3001), reachable on your LAN.
 
 ## Env
